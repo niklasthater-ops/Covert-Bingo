@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Checklist</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: system-ui, sans-serif;
+      background: #111;
+      color: #eee;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 10px;
+    }
+    header { width: 100%; max-width: 640px; margin-bottom: 10px; }
+    h1 { font-size: 16px; color: #aaa; margin: 0 0 8px 0; }
+    .controls { display: flex; flex-wrap: wrap; gap: 6px; }
+    input, button {
+      padding: 8px 10px;
+      border-radius: 6px;
+      border: 1px solid #333;
+      background: #222;
+      color: #eee;
+      font-size: 14px;
+    }
+    input { flex: 1; min-width: 140px; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 6px;
+      width: 100%;
+      max-width: 640px;
+    }
+    .cell {
+      aspect-ratio: 1/1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 4px;
+      background: #222;
+      border: 1px solid #333;
+      border-radius: 8px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .cell.marked { background: #2d4836; color: #3fe087; font-weight: bold; }
+    .cell.star { font-size: 20px; color: gold; }
+    .cell.win { background: #665a28 !important; color: #ffd54a !important; }
+    .cell.highlight { outline: 2px solid #7aa2ff; }
+    .toast {
+      position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+      background: #000; color: #fff; padding: 10px 16px;
+      border-radius: 20px; border: 1px solid #444;
+    }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Checklist</h1>
+    <div class="controls">
+      <input id="search" placeholder="Search phrase…" />
+      <button id="findNextBtn">Find Next</button>
+      <button id="newCardBtn">New Card</button>
+      <button id="resetBtn">Reset</button>
+    </div>
+  </header>
+
+  <div class="grid" id="grid"></div>
+  <div class="toast hidden" id="toast">BINGO!</div>
+
+  <script>
+    const SIZE = 5;
+    const CENTER = 12;
+    const PHRASES = [
+      "Handing you a thing you don't want to be handed",
+      "Bless your/their cotton socks",
+      "Such is the nature of things",
+      "Misusing the word 'ideology'",
+      "Mispronouncing a big scientific word",
+      "That time her dad left her on a mountaintop",
+      "Inappropriate remark about gay/queer people",
+      "Complaining about people no one present knows",
+      "Using a derogatory nickname about someone behind their back",
+      "Outsourcing responsibility for not doing jobs (e.g., keys, nail polish)",
+      "Decades-old story about the good old days",
+      "Talking about her pause",
+      "Pubbeties",
+      "Orbs orbs orbs",
+      "What doing?",
+      "Jeebus",
+      "The devil",
+      "Jeremy Christ",
+      "A-A-Ron",
+      "Asking someone 'Would you like to…' instead of asking them to do it",
+      "Dad was a pilot",
+      "When I used to have my bedroom there",
+      "Neck minute",
+      "That's a troobs.",
+      "Suffice it to say...",
+      "Arab Spring",
+      "My cunt of a sister",
+      "Pouring 2.5 Standard Drinks of wine into one Glass"
+    ];
+
+    let labels = [];
+    let marked = [];
+    let currentMatches = [];
+    let matchCursor = 0;
+
+    function shuffle(arr){ for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]];} return arr; }
+    function sample(array, k){ const a=array.slice(); shuffle(a); return a.slice(0,k); }
+
+    function generateCard(){
+      const picks = sample(PHRASES,24);
+      labels=[];
+      for(let i=0;i<25;i++){
+        labels[i] = (i===CENTER)? '★': picks.pop();
+      }
+      marked = labels.map((v,i)=> v==='★' && i===CENTER);
+      render();
+    }
+
+    function render(){
+      const grid=document.getElementById('grid');
+      grid.innerHTML='';
+      labels.forEach((text,idx)=>{
+        const cell=document.createElement('div');
+        cell.className='cell'+(text==='★'?' star':'')+(marked[idx]?' marked':'');
+        cell.dataset.idx=idx;
+        cell.textContent=text;
+        cell.onclick=()=>toggle(idx);
+        grid.appendChild(cell);
+      });
+    }
+
+    function toggle(idx){
+      if(labels[idx]==='★'&&idx===CENTER)return;
+      marked[idx]=!marked[idx];
+      render();
+      checkWin();
+    }
+
+    function lines(){
+      const L=[];
+      for(let r=0;r<SIZE;r++) L.push(Array.from({length:SIZE},(_,c)=>r*SIZE+c));
+      for(let c=0;c<SIZE;c++) L.push(Array.from({length:SIZE},(_,r)=>r*SIZE+c));
+      L.push([0,6,12,18,24]);
+      L.push([4,8,12,16,20]);
+      return L;
+    }
+
+    function checkWin(){
+      const wins=[];
+      for(const line of lines()){
+        if(line.every(i=>marked[i])) wins.push(line);
+      }
+      document.querySelectorAll('.cell').forEach(c=>c.classList.remove('win'));
+      if(wins.length>0){
+        wins.forEach(line=>{
+          line.forEach(i=>{
+            document.querySelector(`[data-idx="${i}"]`).classList.add('win');
+          });
+        });
+        showToast();
+      }
+    }
+
+    function showToast(){
+      const t=document.getElementById('toast');
+      t.classList.remove('hidden');
+      setTimeout(()=>t.classList.add('hidden'),2000);
+    }
+
+    function runSearch(){
+      const q=document.getElementById('search').value.toLowerCase();
+      document.querySelectorAll('.cell').forEach(c=>c.classList.remove('highlight'));
+      currentMatches=[]; matchCursor=0;
+      if(!q)return;
+      labels.forEach((txt,idx)=>{ if(txt!=='★' && txt.toLowerCase().includes(q)) currentMatches.push(idx); });
+      highlight();
+    }
+
+    function highlight(){
+      if(currentMatches.length===0)return;
+      const idx=currentMatches[matchCursor%currentMatches.length];
+      const cell=document.querySelector(`[data-idx="${idx}"]`);
+      if(cell){ cell.classList.add('highlight'); cell.scrollIntoView({behavior:'smooth',block:'center'}); }
+    }
+
+    document.getElementById('search').addEventListener('input', runSearch);
+    document.getElementById('findNextBtn').onclick=()=>{ if(currentMatches.length){ matchCursor=(matchCursor+1)%currentMatches.length; document.querySelectorAll('.cell').forEach(c=>c.classList.remove('highlight')); highlight(); } };
+    document.getElementById('newCardBtn').onclick=generateCard;
+    document.getElementById('resetBtn').onclick=()=>{ marked=labels.map((v,i)=> v==='★'&&i===CENTER); render(); };
+
+    generateCard();
+  </script>
+</body>
+</html>
